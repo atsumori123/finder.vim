@@ -188,7 +188,7 @@ function! s:open_current(open_cmd, close_and_open) abort
 		call s:explorer_to_child(item)
 		call s:render_items()
 	else
-		call nexus#explorer#open(item, a:open_cmd, a:close_and_open)
+		call nexus#utils#open(item, a:open_cmd, a:close_and_open)
 	endif
 endfunction
 
@@ -247,45 +247,16 @@ endfunction
 "---------------------------------------------------------------
 function! s:set_highlight() abort
 	syntax clear
-	syntax match ExplorerDirectory		'^  .\+/$'
-	syntax match ExplorerHidden			'^  \..\+$'
-	syntax match ExplorerNoItems		'^  (no items)$'
-	syntax match ExplorerMatch			'^>.*'
-	syntax match ExplorerCurrentDir		'^[^\ \->].*'
-	highlight! default link ExplorerDirectory	Directory
-	highlight! default link ExplorerHidden		Comment
-	highlight! default link ExplorerNoItems		Comment
-	highlight! default link ExplorerMatch		Special
-	highlight! default link ExplorerCurrentDir	Title
-endfunction
-
-"---------------------------------------------------------------
-" nexus#explorer#open
-"---------------------------------------------------------------
-function! nexus#explorer#open(path, open_cmd, close_and_open) abort
-	let bufnr = nexus#get_exe_bufnr()
-
-	call nexus#utils#exit()
-
-	" ファイルがバッファにロード済みか
-	let winnr = bufwinnr('^' . a:path . '$')
-	if winnr != -1
-		" ロードしているバッファにスイッチ
-		execute winnr . 'wincmd w'
-	else
-		" 新しくバッファにロードする
-		execute printf('%s %s', a:open_cmd, fnameescape(a:path))
-	endif
-
-	if a:close_and_open
-		if bufexists(bufnr) && bufnr("%") != bufnr
-			if getbufinfo(bufnr)[0].changed
-				call nexus#utils#msg("WarningMsg", printf("Unsaved changes in buffer %s.", bufnr))
-			else
-				execute 'bdelete! '.bufnr
-			endif
-		endif
-	endif
+	syntax match NXDirectory	'^  .\+/$'
+	syntax match NXHidden		'^  \..\+$'
+	syntax match NXNoItems		'^  (no items)$'
+	syntax match NXMatch		'^>.*'
+	syntax match NXCurrentDir	'^[^\ \->].*'
+	highlight! default link NXDirectory		Directory
+	highlight! default link NXHidden		Comment
+	highlight! default link NXNoItems		Comment
+	highlight! default link NXMatch			Special
+	highlight! default link NXCurrentDir	Title
 endfunction
 
 "---------------------------------------------------------------

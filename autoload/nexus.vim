@@ -22,7 +22,7 @@ function! s:open_window() abort
 	setlocal modifiable
 	setlocal filetype=nexus
 	setlocal buftype=nofile
-	setlocal bufhidden=delete
+	setlocal bufhidden=wipe
 	setlocal noswapfile
 	setlocal nowrap
 	setlocal cursorline
@@ -39,7 +39,7 @@ function! nexus#explorer(...) abort
 	 	call nexus#utils#msg("Error", printf("Directory %s doesn't exist.", start_dir))
 	endif
 
-	if &buftype != ''
+	if nexus#utils#is_nexus() == v:false
 		call nexus#utils#msg("Error", "Cannot be executed due to a special buffer.")
 		return
 	endif
@@ -53,6 +53,11 @@ endfunction
 " nexus#oldfiles
 "---------------------------------------------------------------
 function! nexus#mru() abort
+	if nexus#utils#is_nexus() == v:false
+		call nexus#utils#msg("Error", "Cannot be executed due to a special buffer.")
+		return
+	endif
+
 	call s:open_window()
 
 	call nexus#mru#start()
@@ -62,15 +67,20 @@ endfunction
 " nexus#finder
 "---------------------------------------------------------------
 function! nexus#finder(...) abort
+	if nexus#utils#is_nexus() == v:false
+		call nexus#utils#msg("Error", "Cannot be executed due to a special buffer.")
+		return
+	endif
+
 	if len(a:000) && !empty(a:000[0])
-		let start_dir = resolve(a:000[0])
+		let start_dir = nexus#utils#win_to_unix(a:000[0])
 	else
 		let d = fnamemodify(bufname(bufnr("%")), ':p:h')
 		let start_dir = resolve(input("Start directory: ", d, "dir"))
 	endif
 
 	if empty(start_dir) || !isdirectory(start_dir)
-		call nexus#utils#msg("Error", "Could not set the starting directory.")
+		call nexus#utils#msg("Error", printf("Could not set the starting directory. (%s)", start_dir))
 		return
 	endif
 

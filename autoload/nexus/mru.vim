@@ -59,54 +59,8 @@ endfunction
 "---------------------------------------------------------------
 function! s:open_current() abort
 	call clearmatches(win_getid())
-
-	let filepath = matchstr(getline("."), '(\zs.*\ze)')
-
-	call nexus#utils#exit()
-
-	let winnum = bufwinnr('^' . filepath . '$')
-	if winnum != -1
-		" ターゲットバッファを開いているウィンドウがある
-		exe winnum . 'wincmd w'
-	elseif nexus#utils#switch_normal_window() == 0
-		" 通常バッファを表示しているウィンドウが無い
-		call nexus#utils#msg("Error", "Can not open because normal window does not exits.")
-	else
-		" 上記以外
-		exe "edit " filepath
-	endif
-endfunction
-
-"-------------------------------------------------------
-" update_mru
-"-------------------------------------------------------
-function! nexus#mru#update_mru(cond) abort
-	let winid = win_getid()
-
-	" ハイライトを全クリア
-	call clearmatches(winid)
-
-	" MRUリストを取得
-	let mru = s:get_mru(a:cond)
-
-	" タイトルとメニューを更新
-	let num  = printf(" < %d files > ", len(mru))
-	let bar  = repeat("-", (winwidth(0) - len(num) - 8) / 2)
-	let sepa = "  " . bar . num . bar
-	
-	set modifiable
-	silent! %delete _
-	call setline(1, ["", "  MRU > " . a:cond, "", sepa] + mru)
-	set nomodifiable
-
-	call cursor([5, 1])
-
-	" フィルタリングパターンをハイライト
-	if len(a:cond)
-		for v in split(a:cond, "|")
-			call matchadd('Title', (v =~# '[A-Z]' ? '' : '\c') . v, 10, -1, {'window': winid})
-		endfor
-	endif
+	let path = matchstr(getline("."), '(\zs.*\ze)')
+	call nexus#utils#open(path, "edit", 0)
 endfunction
 
 "---------------------------------------------------------------
@@ -118,15 +72,15 @@ function! s:set_keymap() abort
 	nnoremap <buffer> <silent> <c-k> k
 	nnoremap <buffer> <silent><nowait> <ESC> :<C-u>call nexus#utils#exit()<CR>
 	nnoremap <buffer> <silent> <CR>  :call <SID>open_current()<CR>
-	nnoremap <buffer> <silent> <BS>  :call nexus#utils#update_debounce_timer("BS", "nexus#mru#update_mru")<CR>
-	nnoremap <buffer> <silent> <c-u> :call nexus#utils#update_debounce_timer("CLR", "nexus#mru#update_mru")<CR>
+	nnoremap <buffer> <silent> <BS>  :call nexus#utils#update_debounce_timer("BS", "nexus#mru#update")<CR>
+	nnoremap <buffer> <silent> <c-u> :call nexus#utils#update_debounce_timer("CLR", "nexus#mru#update")<CR>
 	nnoremap <buffer> <silent> <c-c> :call nexus#utils#exit()<CR>
 
 	" 必要な文字を一括登録
 	let keys = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_.|"
 	for i in range(0, len(keys) - 1)
 		let k = escape(keys[i], '|')
-		execute printf('nnoremap <buffer> <silent> <nowait> %s :call nexus#utils#update_debounce_timer("%s", "nexus#mru#update_mru")<CR>', k, k)
+		execute printf('nnoremap <buffer> <silent> <nowait> %s :call nexus#utils#update_debounce_timer("%s", "nexus#mru#update")<CR>', k, k)
 	endfor
 endfunction
 
@@ -135,8 +89,11 @@ endfunction
 "---------------------------------------------------------------
 function! s:set_highlight() abort
 	syntax clear
-	syntax match MFilename '^.\{-}\ze('
-	highlight default link MFilename Identifier
+	syntax match NXInfo '^  ---.*'
+	syntax match NXFilename '^.\{-}\ze('
+	highlight default link NXInfo Comment
+	highlight default link NXFilename Identifier
+  	highlight NXMatch ctermfg=10 guifg=LimeGreen
 endfunction
 
 "---------------------------------------------------------------
@@ -152,17 +109,23 @@ function! s:set_autocmd() abort
 endfunction
 
 "---------------------------------------------------------------
+" make_inf
+"---------------------------------------------------------------
+function! s:make_inf(len) abort
+	let inf = printf(" [ %d files ] ", a:len)
+	let bar = repeat("-", (winwidth(0) - len(inf) - 8) / 2)
+	return "  " . bar . inf . bar
+endfunction
+
+"---------------------------------------------------------------
 " initial_render
 "---------------------------------------------------------------
 function! s:first_render() abort
 	let mru  = s:get_mru("")
-	let num  = printf(" < %d files > ", len(mru))
-	let bar  = repeat("-", (winwidth(0) - len(num) - 8) / 2)
-	let sepa = "  " . bar . num . bar
 
 	setlocal modifiable
 	silent! %delete _
-	call setline(1, ["", "  MRU > ", "", sepa] + mru)
+	call setline(1, ["", "  MRU > ", "", s:make_inf(len(mru))] + mru)
 	setlocal nomodifiable
 
 	call cursor([5, 1])
@@ -193,6 +156,33 @@ function! nexus#mru#add(bufnr) abort
 
 	" 履歴の数を上限に丸める
 	let s:OLDFILES = s:OLDFILES[:50-1]
+endfunction
+
+"-------------------------------------------------------
+" nexus#mru#update
+"-------------------------------------------------------
+function! nexus#mru#update(cond) abort
+	let winid = win_getid()
+
+	" ハイライトを全クリア
+	call clearmatches(winid)
+
+	" MRUリストを取得
+	let mru = s:get_mru(a:cond)
+
+	setlocal modifiable
+	silent! %delete _
+	call setline(1, ["", "  MRU > " . a:cond, "", s:make_inf(len(mru))] + mru)
+	setlocal nomodifiable
+
+	call cursor([5, 1])
+
+	" フィルタリングパターンをハイライト
+	if len(a:cond)
+		for v in split(a:cond, "|")
+			call matchadd('NXMatch', (v =~# '[A-Z]' ? '' : '\c') . v, 10, -1, {'window': winid})
+		endfor
+	endif
 endfunction
 
 "---------------------------------------------------------------

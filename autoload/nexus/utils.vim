@@ -2,6 +2,34 @@ let s:save_cpo = &cpoptions
 set cpoptions&vim
 
 "---------------------------------------------------------------
+" nexus#utils#is_nexus
+"---------------------------------------------------------------
+function! nexus#utils#is_nexus() abort
+	let winnr = bufwinnr("-nexus-")
+	if winnr != -1
+		exe winnr.'wincmd w'
+		return v:true
+	elseif &buftype == ''
+		return v:true
+	endif
+
+	return v:false
+endfunction
+
+"---------------------------------------------------------------
+" nexus#utils#win_to_unix
+"---------------------------------------------------------------
+function! nexus#utils#win_to_unix(path) abort
+	" バックスラッシュをスラッシュに置換
+	let path = tr(a:path, '\', '/')
+  
+	" 必要に応じて先頭のドライブ小文字化
+"	return substitute(path, '^\([A-Z]\):', '\L/\1', '')
+"	return substitute(path, '^\([A-Z]\)', '\L\1', '')
+	return path
+endfunction
+
+"---------------------------------------------------------------
 " メッセージ出力
 "---------------------------------------------------------------
 function! nexus#utils#msg(hl, msg) abort
@@ -67,6 +95,32 @@ function! nexus#utils#safe_input(prompt, text, completion)
 	endif
 
 	return [v:true, str]
+endfunction
+
+"---------------------------------------------------------------
+" nexus#utils#open
+"---------------------------------------------------------------
+function! nexus#utils#open(path, open_cmd, close_and_open) abort
+	let bufnr = nexus#get_exe_bufnr()
+
+	call nexus#utils#exit()
+
+	let winnr = bufwinnr('^' . a:path . '$')
+	if winnr != -1
+		execute winnr . 'wincmd w'
+	else
+		execute printf('%s %s', a:open_cmd, fnameescape(a:path))
+	endif
+
+	if a:close_and_open
+		if bufexists(bufnr) && bufnr("%") != bufnr
+			if getbufinfo(bufnr)[0].changed
+				call nexus#utils#msg("WarningMsg", printf("Unsaved changes in buffer %s.", bufnr))
+			else
+				execute 'bdelete! '.bufnr
+			endif
+		endif
+	endif
 endfunction
 
 "---------------------------------------------------------------
@@ -155,9 +209,9 @@ function! nexus#utils#exit() abort
 	call clearmatches(win_getid())
 
 	let exe_bufnr = nexus#get_exe_bufnr()
-	if exe_bufnr == bufnr("%") || !bufexists(exe_bufnr)
+	if exe_bufnr == bufnr("%")
 		bdelete
-	else
+	elseif bufexists(exe_bufnr)
 		execute printf('buffer! %d', exe_bufnr)
 	endif
 endfunction

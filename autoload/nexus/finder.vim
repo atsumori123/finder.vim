@@ -9,7 +9,7 @@ function! s:finder_init(start_dir) abort
 	if !empty(get(b:, "F", "")) | return | endif
 	let b:F = {}
 	let b:F.start_dir	= a:start_dir
-	let b:F.files		= s:get_recursive_files(a:start_dir, 0)
+	let b:F.files		= s:get_recursive_files(a:start_dir, v:false)
 	let b:F.files_work	= copy(b:F.files)
 	let b:F.old_cond	= ""
 endfunction
@@ -55,55 +55,17 @@ endfunction
 "---------------------------------------------------------------
 function! s:open_current() abort
 	call clearmatches(win_getid())
-
 	let file = trim(getline("."))
-	let filepath = printf("%s/%s", s:get('start_dir'), s:escape_filename(file))
-
-	call nexus#utils#exit()
-
-	let winnum = bufwinnr('^' . filepath . '$')
-	if winnum != -1
-		" ターゲットバッファを開いているウィンドウがある
-		exe winnum . 'wincmd w'
-	elseif nexus#utils#switch_normal_window() == 0
-		" 通常バッファを表示しているウィンドウが無い
-		call nexus#utils#msg("Error", "Can not open because normal window does not exits.")
-	else
-		" 上記以外
-		exe "edit " filepath
-	endif
+	let path = printf("%s/%s", s:get('start_dir'), s:escape_filename(file))
+	call nexus#utils#open(path, "edit", 0)
 endfunction
 
-"-------------------------------------------------------
-" nexus#finder#update_files
-"-------------------------------------------------------
-function! nexus#finder#update_files(cond) abort
-	let winid = win_getid()
-
-	" ハイライトを全クリア
-	call clearmatches(winid)
-
-	" ファイルリストを取得
-	let files = s:get_files(a:cond)
-
-	" タイトルとメニューを更新
-	let num  = printf(" < %d files > ", len(files))
-	let bar  = repeat("-", (winwidth(0) - len(num) - 8) / 2)
-	let sepa = "  " . bar . num . bar
-
-	set modifiable
-	silent! %delete _
-	call setline(1, ["", "  FINDER > " . a:cond, "", sepa] + files)
-	set nomodifiable
-
-	call cursor([5, 1])
-
-	" フィルタリングパターンをハイライト
-	if len(a:cond)
-		for v in split(a:cond, "|")
-			call matchadd('Title', (v =~# '[A-Z]' ? '' : '\c') . v, 10, -1, {'window': winid})
-		endfor
-	endif
+"---------------------------------------------------------------
+" reload_files
+"---------------------------------------------------------------
+function! s:reload_files() abort
+	call s:get_recursive_files(s:get('start_dir'), v:true)
+	call nexus#finder#update("")
 endfunction
 
 "---------------------------------------------------------------
@@ -115,16 +77,27 @@ function! s:set_keymap() abort
 	nnoremap <buffer> <silent> <c-k> k
 	nnoremap <buffer> <silent><nowait> <ESC> :<C-u>call nexus#utils#exit()<CR>
 	nnoremap <buffer> <silent> <CR>  :call <SID>open_current()<CR>
-	nnoremap <buffer> <silent> <BS>  :call nexus#utils#update_debounce_timer("BS", "nexus#finder#update_files")<CR>
-	nnoremap <buffer> <silent> <c-u> :call nexus#utils#update_debounce_timer("CLR", "nexus#finder#update_files")<CR>
+	nnoremap <buffer> <silent> <BS>  :call nexus#utils#update_debounce_timer("BS", "nexus#finder#update")<CR>
+	nnoremap <buffer> <silent> <c-u> :call nexus#utils#update_debounce_timer("CLR", "nexus#finder#update")<CR>
 	nnoremap <buffer> <silent> <c-c> :call nexus#utils#exit()<CR>
+	nnoremap <buffer> <silent> <F5>  :call <SID>reload_files()<CR>
 
 	" 必要な文字を一括登録
 	let keys = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_.|"
 	for i in range(0, len(keys) - 1)
 		let k = escape(keys[i], '|')
-		execute printf('nnoremap <buffer> <silent> <nowait> %s :call nexus#utils#update_debounce_timer("%s", "nexus#finder#update_files")<CR>', k, k)
+		execute printf('nnoremap <buffer> <silent> <nowait> %s :call nexus#utils#update_debounce_timer("%s", "nexus#finder#update")<CR>', k, k)
 	endfor
+endfunction
+
+"---------------------------------------------------------------
+" set_highlight
+"---------------------------------------------------------------
+function! s:set_highlight() abort
+	syntax clear
+	syntax match NXInfo '^  ---.*'
+	highlight default link NXInfo Comment
+  	highlight NXMatch ctermfg=10 guifg=LimeGreen
 endfunction
 
 "---------------------------------------------------------------
@@ -140,17 +113,23 @@ function! s:set_autocmd() abort
 endfunction
 
 "---------------------------------------------------------------
+" make_inf
+"---------------------------------------------------------------
+function! s:make_inf(len) abort
+	let inf = printf(" [ %s : %d files ] ", s:get('start_dir'), a:len)
+	let bar = repeat("-", (winwidth(0) - len(inf) - 8) / 2)
+	return "  " . bar . inf . bar
+endfunction
+
+"---------------------------------------------------------------
 " first_render
 "---------------------------------------------------------------
 function! s:first_render() abort
 	let files = s:get_files("")
-	let num   = printf(" < %d files > ", len(files))
-	let bar   = repeat("-", (winwidth(0) - len(num) - 4) / 2)
-	let sepa  = "  " . bar . num . bar
 
 	setlocal modifiable
 	silent! %delete _
-	call setline(1, ["", "  FILES > ", "", sepa] + files)
+	call setline(1, ["", "  FILES > ", "", s:make_inf(len(files))] + files)
 	setlocal nomodifiable
 
 	call cursor([5, 1])
@@ -250,6 +229,33 @@ function! s:get_recursive_files(start_dir, force) abort
 	return map(files, '"  " . v:val')
 endfunction
 
+"-------------------------------------------------------
+" nexus#finder#update
+"-------------------------------------------------------
+function! nexus#finder#update(cond) abort
+	let winid = win_getid()
+
+	" ハイライトを全クリア
+	call clearmatches(winid)
+
+	" ファイルリストを取得
+	let files = s:get_files(a:cond)
+
+	setlocal modifiable
+	silent! %delete _
+	call setline(1, ["", "  FILES > " . a:cond, "", s:make_inf(len(files))] + files)
+	setlocal nomodifiable
+
+	call cursor([5, 1])
+
+	" フィルタリングパターンをハイライト
+	if len(a:cond)
+		for v in split(a:cond, "|")
+			call matchadd('NXMatch', (v =~# '[A-Z]' ? '' : '\c') . v, 10, -1, {'window': winid})
+		endfor
+	endif
+endfunction
+
 "---------------------------------------------------------------
 " nexus#finder#start
 "---------------------------------------------------------------
@@ -257,6 +263,8 @@ function! nexus#finder#start(start_dir) abort
 	call s:finder_init(a:start_dir)
 
 	call s:set_keymap()
+
+	call s:set_highlight()
 
 	call s:set_autocmd()
 
