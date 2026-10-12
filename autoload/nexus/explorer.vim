@@ -102,7 +102,7 @@ function! s:get_items_from_dir(dir, show_hidden) abort
 		let items = map(readdir(a:dir, '1'), {_, v -> s:name(a:dir, {'type': getftype(a:dir .. '/' .. v), 'name': v})})
 	endif
 
-	if a:show_hidden
+	if !a:show_hidden
 		call filter(items, 'v:val =~# "^[^.]"')
 	endif
 
@@ -188,7 +188,7 @@ function! s:open_current(open_cmd, close_and_open) abort
 		call s:explorer_to_child(item)
 		call s:render_items()
 	else
-		call finder#explorer#open(item, a:open_cmd, a:close_and_open)
+		call nexus#explorer#open(item, a:open_cmd, a:close_and_open)
 	endif
 endfunction
 
@@ -206,10 +206,10 @@ endfunction
 function! s:file_action(action) abort
 	let ret = v:false
 
-	if     a:action ==# "rm" | let ret = finder#file#remove(s:get_cursor_item())
-	elseif a:action ==# "cp" | let ret = finder#file#copy(s:get_cursor_item())
-	elseif a:action ==# "mv" | let ret = finder#file#move(s:get_cursor_item())
-	elseif a:action ==# "mk" | let ret = finder#file#mkdir(s:get("current_dir"))
+	if     a:action ==# "rm" | let ret = nexus#file#remove(s:get_cursor_item())
+	elseif a:action ==# "cp" | let ret = nexus#file#copy(s:get_cursor_item())
+	elseif a:action ==# "mv" | let ret = nexus#file#move(s:get_cursor_item())
+	elseif a:action ==# "mk" | let ret = nexus#file#mkdir(s:get("current_dir"))
 	endif
 
 	if ret == v:true
@@ -219,24 +219,12 @@ function! s:file_action(action) abort
 endfunction
 
 "---------------------------------------------------------------
-" exit
-"---------------------------------------------------------------
-function! s:exit() abort
-	let exe_bufnr = finder#get_exe_bufnr()
-	if exe_bufnr == bufnr("%") || !bufexists(exe_bufnr)
-		bdelete
-	else
-		execute printf('buffer! %d', exe_bufnr)
-	endif
-endfunction
-
-"---------------------------------------------------------------
 " set_keymap
 "---------------------------------------------------------------
 function! s:set_keymap() abort
 	mapclear <buffer>
-	nnoremap <buffer> <silent><nowait> <ESC> :<C-u>call <SID>exit()<CR>
-	nnoremap <buffer> <silent> q     :<C-u>call <SID>exit()<CR>
+	nnoremap <buffer> <silent><nowait> <ESC> :<C-u>call nexus#utils#exit()<CR>
+	nnoremap <buffer> <silent> q     :<C-u>call nexus#utils#exit()<CR>
 	nnoremap <buffer> <silent> <CR>  :<C-u>call <SID>open_current('edit', v:false)<CR>
 	nnoremap <buffer> <silent> l     :<C-u>call <SID>open_current('edit', v:false)<CR>
 	nnoremap <buffer> <silent> L     :<C-u>call <SID>open_current('edit', v:true)<CR>
@@ -244,10 +232,10 @@ function! s:set_keymap() abort
 	nnoremap <buffer> <silent> h     :<C-u>call <SID>open_parent()<CR>
 	nnoremap <buffer> <silent> .     :<C-u>call <SID>toggle_hidden()<CR>
 	nnoremap <buffer> <silent> s     :<C-u>call <SID>proposed_cursor()<CR>
-	nnoremap <buffer> <silent> <C-j> :<C-u>call finder#utils#jump_cursor(1, ">")<CR>
-	nnoremap <buffer> <silent> <C-k> :<C-u>call finder#utils#jump_cursor(-1, ">")<CR>
-	nnoremap <buffer> <silent> b     :<C-u>call finder#bookmark#start()<CR>
-	nnoremap <buffer> <silent> a     :<C-u>call finder#bookmark#add(<SID>get_cursor_item())<CR>
+	nnoremap <buffer> <silent> <C-j> :<C-u>call nexus#utils#jump_cursor(1, ">")<CR>
+	nnoremap <buffer> <silent> <C-k> :<C-u>call nexus#utils#jump_cursor(-1, ">")<CR>
+	nnoremap <buffer> <silent> b     :<C-u>call nexus#bookmark#start()<CR>
+	nnoremap <buffer> <silent> a     :<C-u>call nexus#bookmark#add(<SID>get_cursor_item())<CR>
 	nnoremap <buffer> <silent> rm    :<C-u>call <SID>file_action("rm")<CR>
 	nnoremap <buffer> <silent> cp    :<C-u>call <SID>file_action("cp")<CR>
 	nnoremap <buffer> <silent> mv    :<C-u>call <SID>file_action("mv")<CR>
@@ -272,10 +260,12 @@ function! s:set_highlight() abort
 endfunction
 
 "---------------------------------------------------------------
-" finder#explorer#open
+" nexus#explorer#open
 "---------------------------------------------------------------
-function! finder#explorer#open(path, open_cmd, close_and_open) abort
-	call s:exit()
+function! nexus#explorer#open(path, open_cmd, close_and_open) abort
+	let bufnr = nexus#get_exe_bufnr()
+
+	call nexus#utils#exit()
 
 	" ファイルがバッファにロード済みか
 	let winnr = bufwinnr('^' . a:path . '$')
@@ -288,10 +278,9 @@ function! finder#explorer#open(path, open_cmd, close_and_open) abort
 	endif
 
 	if a:close_and_open
-		let bufnr = s:get('finder_exe_bufnr')
 		if bufexists(bufnr) && bufnr("%") != bufnr
 			if getbufinfo(bufnr)[0].changed
-				call finder#utils#msg("WarningMsg", printf("Unsaved changes in buffer %s.", bufnr))
+				call nexus#utils#msg("WarningMsg", printf("Unsaved changes in buffer %s.", bufnr))
 			else
 				execute 'bdelete! '.bufnr
 			endif
@@ -300,9 +289,9 @@ function! finder#explorer#open(path, open_cmd, close_and_open) abort
 endfunction
 
 "---------------------------------------------------------------
-" finder#explorer#start
+" nexus#explorer#start
 "---------------------------------------------------------------
-function! finder#explorer#start(start_dir) abort
+function! nexus#explorer#start(start_dir) abort
 	call s:set_keymap()
 
 	call s:set_highlight()
@@ -316,3 +305,4 @@ endfunction
 
 let &cpoptions = s:save_cpo
 unlet s:save_cpo
+

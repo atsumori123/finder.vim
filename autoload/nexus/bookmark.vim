@@ -35,6 +35,7 @@ endfunction
 
 " get bookmark
 function! s:get_bookmark(index) abort
+	echom a:index
 	return {  "path" : matchstr(b:B.bookmarks[a:index], '^[^\t]*'),
 			\ "name" : matchstr(b:B.bookmarks[a:index], '\t\zs.*')}
 endfunction
@@ -50,11 +51,11 @@ function! s:open_current(open_cmd, close_and_open) abort
 
 	call s:bookmark_save()
 
-	let bookmark = s:get_bookmark(line("."))
+	let bookmark = s:get_bookmark(line(".") - 2)
 	if isdirectory(bookmark.path)
-		call finder#explorer#start(bookmark.path)
+		call nexus#explorer#start(bookmark.path)
 	else
-		call finder#explorer#open(bookmark.path, a:open_cmd, a:close_and_open)
+		call nexus#explorer#open(bookmark.path, a:open_cmd, a:close_and_open)
 	endif
 endfunction
 
@@ -62,7 +63,7 @@ endfunction
 " category
 "---------------------------------------------------------------
 function! s:category() abort
-	let [ret, name] = finder#utils#safe_input("Separaotr name: ", "", "")
+	let [ret, name] = nexus#utils#safe_input("Separaotr name: ", "", "")
 	if ret == v:false
 		return
 	endif
@@ -87,9 +88,9 @@ function! s:edit() abort
 	let bookmark = s:get_bookmark(lnum)
 
 	if bookmark.path ==# "&sep"
-		let [ret, new_name] = finder#utils#safe_input('New name: ', bookmark.name, "")
+		let [ret, new_name] = nexus#utils#safe_input('New name: ', bookmark.name, "")
 		if ret == v:false
-			call finder#utils#msg("Normal", "Cancelled.")
+			call nexus#utils#msg("Normal", "Cancelled.")
 			return
 		endif
 		let _ = s:bookmark_remove(lnum)
@@ -97,16 +98,16 @@ function! s:edit() abort
 		let item = empty(new_name) ? '' : '- ' . new_name
 
 	else
-		let [ret, new_path] = finder#utils#safe_input('New path: ', bookmark.path, 'dir')
+		let [ret, new_path] = nexus#utils#safe_input('New path: ', bookmark.path, 'dir')
 		if ret == v:false || !len(new_path)
-			call finder#utils#msg("Normal", "Cancelled.")
+			call nexus#utils#msg("Normal", "Cancelled.")
 			return
 		endif
 		let new_path = substitute(new_path, '[/|\\]$', "", "")
 
-		let [ret, new_name] = finder#utils#safe_input('New name: ', bookmark.name, "")
+		let [ret, new_name] = nexus#utils#safe_input('New name: ', bookmark.name, "")
 		if ret == v:false
-			call finder#utils#msg("Normal", "Cancelled.")
+			call nexus#utils#msg("Normal", "Cancelled.")
 			return
 		endif
 		let _ = s:bookmark_remove(lnum)
@@ -151,7 +152,7 @@ function! s:remove() abort
 		return
 	endif
 
-	if finder#utils#get_char("Delete ? [y/n] ") != 'y'
+	if nexus#utils#get_char("Delete ? [y/n] ") != 'y'
 		return
 	endif
 
@@ -167,7 +168,7 @@ endfunction
 "---------------------------------------------------------------
 function! s:exit() abort
 	call s:bookmark_save()
-	call finder#explorer#start(b:E.current_dir)
+	call nexus#explorer#start(b:E.current_dir)
 endfunction
 
 "---------------------------------------------------------------
@@ -197,8 +198,8 @@ function! s:set_keymap() abort
 	nnoremap <buffer> <silent> K     :<C-u>call <SID>updown('up')<CR>
 	nnoremap <buffer> <silent> J     :<C-u>call <SID>updown('down')<CR>
 	nnoremap <buffer> <silent> rm    :<C-u>call <SID>remove()<CR>
-	nnoremap <buffer> <silent> <C-j> :<C-u>call finder#utils#jump_cursor(1, "-")<CR>
-	nnoremap <buffer> <silent> <C-k> :<C-u>call finder#utils#jump_cursor(-1, "-")<CR>
+	nnoremap <buffer> <silent> <C-j> :<C-u>call nexus#utils#jump_cursor(1, "-")<CR>
+	nnoremap <buffer> <silent> <C-k> :<C-u>call nexus#utils#jump_cursor(-1, "-")<CR>
 endfunction
 
 "---------------------------------------------------------------
@@ -224,9 +225,9 @@ function! s:open_bookmark() abort
 endfunction
 
 "---------------------------------------------------------------
-" finder#bookmark#add
+" nexus#bookmark#add
 "---------------------------------------------------------------
-function! finder#bookmark#add(item) abort
+function! nexus#bookmark#add(item) abort
 	if empty(a:item)
 		return
 	endif
@@ -235,13 +236,13 @@ function! finder#bookmark#add(item) abort
 	call s:bookmark_add(a:item, 0)
 	call s:bookmark_save()
 
-	call finder#utils#msg("Normal", printf('Add "%s" to bookmark.', a:item))
+	call nexus#utils#msg("Normal", printf('Add "%s" to bookmark.', a:item))
 endfunction
 
 "---------------------------------------------------------------
-" finder#explorer#start
+" nexus#bookmark#start
 "---------------------------------------------------------------
-function! finder#bookmark#start() abort
+function! nexus#bookmark#start() abort
 	call s:set_keymap()
 
 	call s:set_highlight()
@@ -253,3 +254,4 @@ endfunction
 
 let &cpoptions = s:save_cpo
 unlet s:save_cpo
+
