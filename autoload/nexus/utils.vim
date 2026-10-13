@@ -203,6 +203,25 @@ function! nexus#utils#stop_debounce_timer() abort
 endfunction
 
 "---------------------------------------------------------------
+" nexus#utils#set_cursor_limit
+"---------------------------------------------------------------
+function! nexus#utils#set_cursor_limit(on, limit) abort
+	if a:on == v:true
+		let b:nexus_cursor_limit = a:limit
+		augroup nexus_cursor_limit
+			autocmd!
+			autocmd CursorMoved <buffer> if line(".") < b:nexus_cursor_limit | call cursor([b:nexus_cursor_limit, 1]) | endif
+		augroup END
+	else
+		if exists("#nexus_cursor_limit#CursorMoved") != 0
+			augroup nexus_cursor_limit
+				autocmd!
+			augroup END
+		endif
+	endif
+endfunction
+
+"---------------------------------------------------------------
 " nexus#utils#exit
 "---------------------------------------------------------------
 function! nexus#utils#exit() abort

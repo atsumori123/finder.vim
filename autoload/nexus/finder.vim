@@ -54,6 +54,7 @@ endfunction
 " open_current 
 "---------------------------------------------------------------
 function! s:open_current() abort
+	if line(".") < 5 | return | endif
 	call clearmatches(win_getid())
 	let file = trim(getline("."))
 	let path = printf("%s/%s", s:get('start_dir'), s:escape_filename(file))
@@ -101,18 +102,6 @@ function! s:set_highlight() abort
 endfunction
 
 "---------------------------------------------------------------
-" set_autocmd
-"---------------------------------------------------------------
-function! s:set_autocmd() abort
-	if exists("#nexus_finder#CursorMoved") == 0
-		augroup nexus_filefinde
-			autocmd!
-			autocmd CursorMoved <buffer> if line(".") < 4 | call cursor([4, 1]) | endif
-		augroup END
-	endif
-endfunction
-
-"---------------------------------------------------------------
 " make_inf
 "---------------------------------------------------------------
 function! s:make_inf(len) abort
@@ -129,7 +118,7 @@ function! s:first_render() abort
 
 	setlocal modifiable
 	silent! %delete _
-	call setline(1, ["", "  FILES > ", "", s:make_inf(len(files))] + files)
+	call setline(1, ["", "  FILES > ", "", s:make_inf(len(files))] + files[:99])
 	setlocal nomodifiable
 
 	call cursor([5, 1])
@@ -243,7 +232,7 @@ function! nexus#finder#update(cond) abort
 
 	setlocal modifiable
 	silent! %delete _
-	call setline(1, ["", "  FILES > " . a:cond, "", s:make_inf(len(files))] + files)
+	call setline(1, ["", "  FILES > " . a:cond, "", s:make_inf(len(files))] + files[:99])
 	setlocal nomodifiable
 
 	call cursor([5, 1])
@@ -266,7 +255,7 @@ function! nexus#finder#start(start_dir) abort
 
 	call s:set_highlight()
 
-	call s:set_autocmd()
+	call nexus#utils#set_cursor_limit(v:true, 5)
 
 	call s:first_render()
 

@@ -271,6 +271,8 @@ function! nexus#explorer#start(start_dir) abort
 
 	call s:explorer_to_child(a:start_dir)
 
+	call nexus#utils#set_cursor_limit(v:true, 2)
+
 	call s:render_items()
 endfunction
 

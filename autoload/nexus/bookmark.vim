@@ -8,7 +8,7 @@ set cpoptions&vim
 function! s:bookmark_init() abort
 	if !empty(get(b:, "B", "")) | return | endif
 	let b:B = {}
-	let b:B.bookmark_file	= (has('win32') ? $HOME.'\_' : $HOME.'/.') . 'explorer_bookmark' 
+	let b:B.bookmark_file	= (has('win32') ? $HOME.'\_' : $HOME.'/.') . 'nexus_bookmark' 
 	let b:B.bookmarks		= filereadable(b:B.bookmark_file) ? readfile(b:B.bookmark_file) : []
 	let b:B.modified		= 0
 endfunction
@@ -35,7 +35,6 @@ endfunction
 
 " get bookmark
 function! s:get_bookmark(index) abort
-	echom a:index
 	return {  "path" : matchstr(b:B.bookmarks[a:index], '^[^\t]*'),
 			\ "name" : matchstr(b:B.bookmarks[a:index], '\t\zs.*')}
 endfunction
@@ -55,7 +54,7 @@ function! s:open_current(open_cmd, close_and_open) abort
 	if isdirectory(bookmark.path)
 		call nexus#explorer#start(bookmark.path)
 	else
-		call nexus#explorer#open(bookmark.path, a:open_cmd, a:close_and_open)
+		call nexus#utils#open(bookmark.path, a:open_cmd, a:close_and_open)
 	endif
 endfunction
 
@@ -104,6 +103,10 @@ function! s:edit() abort
 			return
 		endif
 		let new_path = substitute(new_path, '[/|\\]$', "", "")
+		if !isdirectory(new_path) && !filereadable(new_path)
+			call nexus#utils#msg("Error", "New path is not exists.")
+			return
+		endif
 
 		let [ret, new_name] = nexus#utils#safe_input('New name: ', bookmark.name, "")
 		if ret == v:false

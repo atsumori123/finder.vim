@@ -11,7 +11,7 @@ function! nexus#file#remove(src) abort
 
 	let src_fname = fnamemodify(a:src, ':t')
 
-	let yn = nexus#utils#get_char(printf("Delete %s ? [y/n] ", src_fname))
+	let yn = nexus#utils#get_char(printf('Delete "%s" ? [y/n] ', src_fname))
 	if yn !=# 'y'
 		call nexus#utils#msg("Normal", "Cancelled.")
 		return v:false
@@ -32,11 +32,11 @@ function! nexus#file#remove(src) abort
 	endif
 
 	if delete(a:src, opt) < 0
-		call nexus#utils#msg("Normal", "Cannot delete. " . a:src)
+		call nexus#utils#msg("Normal", printf('Cannot delete "%s"', a:src))
 		return v:false
 	endif
 
-	call nexus#utils#msg("Normal", "Deleted. " . src_fname)
+	call nexus#utils#msg("Normal", printf('Deleted. "%s"', src_fname))
 
 	return v:true
 endfunction
@@ -52,7 +52,7 @@ function! nexus#file#copy(src) abort
 	let [src_dir, src_fname] = [fnamemodify(a:src, ':h'), fnamemodify(a:src, ':t')]
 
 	" コピー先を指定
-	let dst_dir = resolve(input("Copy to ", src_dir, 'dir'))
+	let dst_dir = resolve(input("Input copy destination directory: ", src_dir, 'dir'))
 	if empty(dst_dir)
 		call nexus#utils#msg("Normal", "Cancelled.")
 		return v:false
@@ -67,10 +67,9 @@ function! nexus#file#copy(src) abort
 	" Make distination path
 	let dst_fname = src_fname
 	let dst = dst_dir . '/' . dst_fname
-	echom "dst=".dst
 
 	" コピー先に既に同名のファイルが存在する場合は中止
-	while filereadable(dst) || (isdirectory(dst) && (a:src == dst))
+	while filereadable(dst) || isdirectory(dst) || (isdirectory(dst) && (a:src == dst))
 		redraw
 		let dst_fname = input("Destination already has the same file. Input new name: ", src_fname)
 		if empty(dst_fname)
@@ -104,11 +103,11 @@ function! nexus#file#copy(src) abort
 	endif
 
 	if system(command) !=# '' || v:shell_error != 0
-		call nexus#utils#msg("Error", "Copy failed" . fnamemodify(a:src, ':t'))
+		call nexus#utils#msg("Error", printf('Failed Copy to "%s"', fnamemodify(a:src, ':t')))
 		return v:false
 	endif
 
-	call nexus#utils#msg("Normal", printf("Copyed. '%s' --> '%s'", src_fname, dst))
+	call nexus#utils#msg("Normal", printf('"%s" has copyed to "%s"', src_fname, dst))
 
 	return v:true
 endfunction
@@ -124,7 +123,7 @@ function! nexus#file#move(src) abort
 	let [src_dir, src_fname] = [fnamemodify(a:src, ':h'), fnamemodify(a:src, ':t')]
 
 	"移動先ディレクトリの入力
-	let dst_dir = resolve(input("Move to ", src_dir, 'dir'))
+	let dst_dir = resolve(input("Input move destination directory: ", src_dir, 'dir'))
 	if empty(dst_dir)
 		call nexus#utils#msg("Normal", "Cancelled.")
 		return v:false
@@ -141,7 +140,7 @@ function! nexus#file#move(src) abort
 
 	"移動先が選択項目が同じ場所の場合は新しい名前をつける
 	if a:src == dst
-	 	let dst_fname = input('New name: ', src_fname)
+	 	let dst_fname = input('Input new name: ', src_fname)
 		if empty(dst_fname)
 			call nexus#utils#msg("Normal", "Cancelled.")
 			return v:false
@@ -157,7 +156,8 @@ function! nexus#file#move(src) abort
 	"Move
 	call rename(a:src, dst)
 
-	echo printf("\rMoved. '%s' --> '%s'", src_fname, dst)
+	redraw
+	echo printf('"%s" has moved to "%s"', src_fname, dst)
 
 	return v:true
 endfunction
@@ -166,7 +166,7 @@ endfunction
 " nexus#file#mkdir
 "---------------------------------------------------------------
 function! nexus#file#mkdir(dir) abort
-	let name = input('Create directory name: ')
+	let name = input('Input create directory name: ')
 	if empty(name)
 		call nexus#utils#msg("Normal", "Cancelled.")
 		return v:false
@@ -190,7 +190,8 @@ function! nexus#file#mkdir(dir) abort
 	" Make new directory
 	call mkdir(path, '')
 
-	echo 'Created. ' . name
+	redraw
+	echo printf('Created directory "%s"', name)
 
 	return v:true
 endfunction

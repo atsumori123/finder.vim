@@ -58,6 +58,7 @@ endfunction
 " open_current 
 "---------------------------------------------------------------
 function! s:open_current() abort
+	if line(".") < 5 | return | endif
 	call clearmatches(win_getid())
 	let path = matchstr(getline("."), '(\zs.*\ze)')
 	call nexus#utils#open(path, "edit", 0)
@@ -94,18 +95,6 @@ function! s:set_highlight() abort
 	highlight default link NXInfo Comment
 	highlight default link NXFilename Identifier
   	highlight NXMatch ctermfg=10 guifg=LimeGreen
-endfunction
-
-"---------------------------------------------------------------
-" set_autocmd
-"---------------------------------------------------------------
-function! s:set_autocmd() abort
-	if exists("#nexus_mru#CursorMoved") == 0
-		augroup nexus_mru
-			autocmd!
-			autocmd CursorMoved <buffer> if line(".") < 4 | call cursor([4, 1]) | endif
-		augroup END
-	endif
 endfunction
 
 "---------------------------------------------------------------
@@ -193,7 +182,7 @@ function! nexus#mru#start() abort
 
 	call s:set_highlight()
 
-	call s:set_autocmd()
+	call nexus#utils#set_cursor_limit(v:true, 5)
 
 	call s:load_mru()
 
