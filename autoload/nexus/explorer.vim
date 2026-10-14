@@ -113,10 +113,10 @@ endfunction
 " get_cursor_item
 "---------------------------------------------------------------
 function! s:get_cursor_item() abort
-	let item = get(s:get("items"), line(".") - 2, "")
-	let item = substitute(item, "\[\\/\]$", "", "")
-
-	return empty(item) ? "" : s:get('current_dir') . "/" . item
+	let item = s:get("current_dir")
+	let item .= item =~ '/$' ? "" : "/"
+	let item .= get(s:get("items"), line(".") - 2, "")
+	return substitute(item, "\[\\/\]$", "", "g")
 endfunction
 
 "---------------------------------------------------------------

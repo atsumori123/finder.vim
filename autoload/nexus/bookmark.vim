@@ -53,8 +53,10 @@ function! s:open_current(open_cmd, close_and_open) abort
 	let bookmark = s:get_bookmark(line(".") - 2)
 	if isdirectory(bookmark.path)
 		call nexus#explorer#start(bookmark.path)
-	else
+	elseif filereadable(bookmark.path)
 		call nexus#utils#open(bookmark.path, a:open_cmd, a:close_and_open)
+	else
+		call nexus#utils#msg("Error", printf('"%s" is not exists.', bookmark.path))
 	endif
 endfunction
 

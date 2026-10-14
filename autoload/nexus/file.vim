@@ -11,7 +11,7 @@ function! nexus#file#remove(src) abort
 
 	let src_fname = fnamemodify(a:src, ':t')
 
-	let yn = nexus#utils#get_char(printf('Delete "%s" ? [y/n] ', src_fname))
+	let yn = nexus#utils#get_char(printf('Delete "%s" ? [y/n]: ', src_fname))
 	if yn !=# 'y'
 		call nexus#utils#msg("Normal", "Cancelled.")
 		return v:false
@@ -22,7 +22,7 @@ function! nexus#file#remove(src) abort
 		if empty(readdir(a:src, 1))
 			let opt = 'd'
 		else
-			let yn = nexus#utils#get_char("Directory is not empty. Force delete ? [y/n] ")
+			let yn = nexus#utils#get_char("Directory is not empty. Force delete ? [y/n]: ")
 			if yn !=# 'y'
 				call nexus#utils#msg("Normal", "Cancelled.")
 				return v:false
@@ -52,7 +52,7 @@ function! nexus#file#copy(src) abort
 	let [src_dir, src_fname] = [fnamemodify(a:src, ':h'), fnamemodify(a:src, ':t')]
 
 	" コピー先を指定
-	let dst_dir = resolve(input("Input copy destination directory: ", src_dir, 'dir'))
+	let dst_dir = resolve(nexus#utils#input("Input copy destination directory: ", src_dir, 'dir'))
 	if empty(dst_dir)
 		call nexus#utils#msg("Normal", "Cancelled.")
 		return v:false
@@ -71,7 +71,7 @@ function! nexus#file#copy(src) abort
 	" コピー先に既に同名のファイルが存在する場合は中止
 	while filereadable(dst) || isdirectory(dst) || (isdirectory(dst) && (a:src == dst))
 		redraw
-		let dst_fname = input("Destination already has the same file. Input new name: ", src_fname)
+		let dst_fname = nexus#utils#input("Destination already has the same file. Input new name: ", src_fname)
 		if empty(dst_fname)
 			call nexus#utils#msg("Normal", "Cancelled.")
 			return v:false
@@ -123,7 +123,7 @@ function! nexus#file#move(src) abort
 	let [src_dir, src_fname] = [fnamemodify(a:src, ':h'), fnamemodify(a:src, ':t')]
 
 	"移動先ディレクトリの入力
-	let dst_dir = resolve(input("Input move destination directory: ", src_dir, 'dir'))
+	let dst_dir = resolve(nexus#utils#input("Input move destination directory: ", src_dir, 'dir'))
 	if empty(dst_dir)
 		call nexus#utils#msg("Normal", "Cancelled.")
 		return v:false
@@ -140,7 +140,7 @@ function! nexus#file#move(src) abort
 
 	"移動先が選択項目が同じ場所の場合は新しい名前をつける
 	if a:src == dst
-	 	let dst_fname = input('Input new name: ', src_fname)
+	 	let dst_fname = nexus#utils#input('Input new name: ', src_fname)
 		if empty(dst_fname)
 			call nexus#utils#msg("Normal", "Cancelled.")
 			return v:false
@@ -166,7 +166,7 @@ endfunction
 " nexus#file#mkdir
 "---------------------------------------------------------------
 function! nexus#file#mkdir(dir) abort
-	let name = input('Input create directory name: ')
+	let name = nexus#utils#input('Input create directory name: ')
 	if empty(name)
 		call nexus#utils#msg("Normal", "Cancelled.")
 		return v:false

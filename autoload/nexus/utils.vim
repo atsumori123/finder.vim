@@ -41,12 +41,14 @@ endfunction
 " 1文字入力
 "---------------------------------------------------------------
 function! nexus#utils#get_char(prompt) abort
+	echohl MoreMsg
 	try
 		echo a:prompt
 		let char = call('getchar', a:000)
 	catch /^Vim:Interrupt$/
 		let char = 3 " <C-c>
 	endtry
+	echohl None
 	redraw | echo ""
 
 	if char == 27 || char == 3
@@ -56,6 +58,20 @@ function! nexus#utils#get_char(prompt) abort
 	endif
 
 	return type(char) == v:t_number ? nr2char(char) : char
+endfunction
+
+"---------------------------------------------------------------
+" nexus#utils#input
+"---------------------------------------------------------------
+function! nexus#utils#input(prompt, ...)
+	let text = get(a:000, 0, "")
+	let completion = get(a:000, 1, "none")
+
+	echohl MoreMsg
+	let ret = completion == "none" ? input(a:prompt, text) : input(a:prompt, text, completion)
+	echohl None
+
+	return ret
 endfunction
 
 "---------------------------------------------------------------

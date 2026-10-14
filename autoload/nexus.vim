@@ -34,9 +34,9 @@ endfunction
 " nexus#explorer
 "---------------------------------------------------------------
 function! nexus#explorer(...) abort
-	let start_dir = resolve(get(a:000, 0, getcwd()))
+	let start_dir = exists("b:E.current_dir") ? b:E.current_dir : resolve(get(a:000, 0, getcwd()))
 	if !isdirectory(start_dir)
-	 	call nexus#utils#msg("Error", printf("Directory %s doesn't exist.", start_dir))
+		call nexus#utils#msg("Error", printf("Directory %s doesn't exist.", start_dir))
 	endif
 
 	if nexus#utils#is_nexus() == v:false
