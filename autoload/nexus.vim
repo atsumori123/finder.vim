@@ -13,6 +13,7 @@ endfunction
 "---------------------------------------------------------------
 function! s:open_window() abort
 	if type(get(b:, "exe_bufnr", v:true)) != v:t_bool
+		call clearmatches(0)
 		return
 	endif
 	let bufnr = bufnr("%")

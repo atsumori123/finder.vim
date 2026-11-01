@@ -8,7 +8,7 @@ set cpoptions&vim
 function! s:bookmark_init() abort
 	if !empty(get(b:, "B", "")) | return | endif
 	let b:B = {}
-	let b:B.bookmark_file	= (has('win32') ? $HOME.'\_' : $HOME.'/.') . 'nexus_bookmark' 
+	let b:B.bookmark_file	= printf("%s/vimplugins/_data/nexus_bookmark.txt", $HOME)
 	let b:B.bookmarks		= filereadable(b:B.bookmark_file) ? readfile(b:B.bookmark_file) : []
 	let b:B.modified		= 0
 endfunction

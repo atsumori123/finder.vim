@@ -5,32 +5,37 @@ set cpoptions&vim
 " finder manage function
 "---------------------------------------------------------------
 " init finder
-function! s:finder_init(start_dir) abort
-	if !empty(get(b:, "F", "")) | return | endif
+function! s:finder_init(start_dir, force) abort
+	if !empty(get(b:, "F", "")) && !a:force | return | endif
 	let b:F = {}
 	let b:F.start_dir	= a:start_dir
 	let b:F.files		= s:get_recursive_files(a:start_dir, v:false)
-	let b:F.files_work	= copy(b:F.files)
+	let b:F.matches		= copy(b:F.files)
 	let b:F.old_cond	= ""
+	let b:F.pos_list	= []
 endfunction
 
 " get files list
 function! s:get_files(cond) abort
 	if !((len(b:F.old_cond) <= len(a:cond)) && stridx(a:cond, b:F.old_cond, 0) == 0)
-		let b:F.files_work = copy(b:F.files)
+		let b:F.matches = copy(b:F.files)
 	endif
 
 	if len(a:cond)
-		let cond = ""
-		for v in split(a:cond, "|")
-			let cond .= printf("%sv:val %s '%s'", (len(cond) ? " && " : ""), (v =~# '[A-Z]' ? '=~#' : '=~?'), escape(v, '.'))
-		endfor
-		call filter(b:F.files_work, cond)
+		if exists('*matchfuzzy')
+			let [b:F.matches, b:F.pos_list, _] = matchfuzzypos(b:F.matches, a:cond)
+		else
+			let cond = ""
+			for v in split(a:cond, "|")
+				let cond .= printf("%sv:val %s '%s'", (len(cond) ? " && " : ""), (v =~# '[A-Z]' ? '=~#' : '=~?'), escape(v, '.'))
+			endfor
+			call filter(b:F.matches, cond)
+		endif
 	endif
 
 	let b:F.old_cond = a:cond
 
-	return b:F.files_work
+	return b:F.matches
 endfunction
 
 " get finder param
@@ -65,7 +70,31 @@ endfunction
 " reload_files
 "---------------------------------------------------------------
 function! s:reload_files() abort
-	call s:get_recursive_files(s:get('start_dir'), v:true)
+	let b:F.files = s:get_recursive_files(s:get('start_dir'), v:true)
+	call nexus#finder#update("")
+endfunction
+
+"---------------------------------------------------------------
+" change_cache
+"---------------------------------------------------------------
+function! s:change_cache(direction) abort
+	let cache_files = map(split(glob(s:get_cashe_directory() . '*.txt'), "\n"), 'fnamemodify(v:val, ":t")')
+	let cache_file = substitute(s:get('start_dir'), '\([\/]\|^\a\zs:\)', '%', 'g') . ".txt"
+
+	let idx = index(cache_files, cache_file)
+	if idx == -1
+		let idx = 0
+	else
+		let idx += a:direction
+		let idx = idx < 0 ? len(cache_files) - 1 : idx >= len(cache_files) ? 0 : idx
+	endif
+
+	let sep = nexus#utils#get_sep()
+	let start_dir = fnamemodify(cache_files[idx], ':r')
+	let start_dir = substitute(start_dir, '%%', ':' . sep, '')
+	let start_dir = substitute(start_dir, '%', sep, 'g')
+
+	call s:finder_init(start_dir, v:true)
 	call nexus#finder#update("")
 endfunction
 
@@ -81,6 +110,8 @@ function! s:set_keymap() abort
 	nnoremap <buffer> <silent> <BS>  :call nexus#utils#update_debounce_timer("BS", "nexus#finder#update")<CR>
 	nnoremap <buffer> <silent> <c-u> :call nexus#utils#update_debounce_timer("CLR", "nexus#finder#update")<CR>
 	nnoremap <buffer> <silent> <c-c> :call nexus#utils#exit()<CR>
+	nnoremap <buffer> <silent> <c-l> :call <SID>change_cache(1)<CR>
+	nnoremap <buffer> <silent> <c-h> :call <SID>change_cache(-1)<CR>
 	nnoremap <buffer> <silent> <F5>  :call <SID>reload_files()<CR>
 
 	" 必要な文字を一括登録
@@ -184,13 +215,7 @@ endfunction
 " キャッシュディレクトリの取得
 "---------------------------------------------------------------
 function! s:get_cashe_directory() abort
-	if has('unix') || has('macuni')
-		return $HOME . '/nexus_finder/'
-	elseif has('win32') && $USERPROFILE != ''
-		return $USERPROFILE . '\nexus_finder\'
-	else
-		return $VIM . '/nexus_finder/'
-	endif
+	return printf("%s/vimplugins/_data/nexus_finder/", $HOME)
 endfunction
 
 "---------------------------------------------------------------
@@ -230,18 +255,35 @@ function! nexus#finder#update(cond) abort
 	" ファイルリストを取得
 	let files = s:get_files(a:cond)
 
+	" 表示最大数
+	let max_items = winheight(0) - 5
+
 	setlocal modifiable
 	silent! %delete _
-	call setline(1, ["", "  FILES > " . a:cond, "", s:make_inf(len(files))] + files[:99])
+	call setline(1, ["", "  FILES > " . a:cond, "", s:make_inf(len(files))] + files[:max_items])
 	setlocal nomodifiable
 
 	call cursor([5, 1])
 
 	" フィルタリングパターンをハイライト
 	if len(a:cond)
-		for v in split(a:cond, "|")
-			call matchadd('NXMatch', (v =~# '[A-Z]' ? '' : '\c') . v, 10, -1, {'window': winid})
-		endfor
+		if exists('*matchfuzzy')
+			let pos_group = []
+			for i in range(0, min([len(b:F.matches)-1, max_items]))
+				let text = b:F.matches[i]
+				for char_idx in b:F.pos_list[i]
+					" 文字インデックス(0始まり)をバイトインデックス(1始まり)に変換
+					call add(pos_group, [i + 5, (byteidx(text, char_idx) + 1), 1])
+				endfor
+			endfor
+			if !empty(pos_group)
+				call matchaddpos('NXMatch', pos_group)
+			endif
+		else
+			for v in split(a:cond, "|")
+				call matchadd('NXMatch', (v =~# '[A-Z]' ? '' : '\c') . v, 10, -1, {'window': winid})
+			endfor
+		endif
 	endif
 endfunction
 
@@ -249,7 +291,7 @@ endfunction
 " nexus#finder#start
 "---------------------------------------------------------------
 function! nexus#finder#start(start_dir) abort
-	call s:finder_init(a:start_dir)
+	call s:finder_init(a:start_dir, v:false)
 
 	call s:set_keymap()
 

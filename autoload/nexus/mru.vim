@@ -9,27 +9,32 @@ function! s:mru_init() abort
 	if !empty(get(b:, "M", "")) | return | endif
 	let b:M = {}
 	let b:M.mru			= map(copy(s:OLDFILES[:29]), '"  " . fnamemodify(v:val, ":t")."  (" . v:val . ")"')
-	let b:M.mru_work	= copy(b:M.mru)
+	let b:M.matches		= copy(b:M.mru)
 	let b:M.old_cond	= ""
+	let b:M.pos_list	= []
 endfunction
 
 " get mru list
 function! s:get_mru(cond) abort
 	if !((len(b:M.old_cond) <= len(a:cond)) && stridx(a:cond, b:M.old_cond, 0) == 0)
-		let b:M.mru_work = copy(b:M.mru)
+		let b:M.matches = copy(b:M.mru)
 	endif
 
 	if len(a:cond)
-		let cond = ""
-		for v in split(a:cond, "|")
-			let cond .= printf("%sv:val %s '%s'", (len(cond) ? " && " : ""), (v =~# '[A-Z]' ? '=~#' : '=~?'), escape(v, '.'))
-		endfor
-		call filter(b:M.mru_work, cond)
+		if exists('*matchfuzzy')
+			let [b:M.matches, b:M.pos_list, _] = matchfuzzypos(b:M.matches, a:cond)
+		else
+			let cond = ""
+			for v in split(a:cond, "|")
+				let cond .= printf("%sv:val %s '%s'", (len(cond) ? " && " : ""), (v =~# '[A-Z]' ? '=~#' : '=~?'), escape(v, '.'))
+			endfor
+			call filter(b:M.matches, cond)
+		endif
 	endif
 
 	let b:M.old_cond = a:cond
 
-	return b:M.mru_work
+	return b:M.matches
 endfunction
 
 "---------------------------------------------------------------
@@ -168,9 +173,23 @@ function! nexus#mru#update(cond) abort
 
 	" フィルタリングパターンをハイライト
 	if len(a:cond)
-		for v in split(a:cond, "|")
-			call matchadd('NXMatch', (v =~# '[A-Z]' ? '' : '\c') . v, 10, -1, {'window': winid})
-		endfor
+		if exists('*matchfuzzy')
+			let pos_group = []
+			for i in range(len(b:M.matches))
+				let text = b:M.matches[i]
+				for char_idx in b:M.pos_list[i]
+					" 文字インデックス(0始まり)をバイトインデックス(1始まり)に変換
+					call add(pos_group, [i + 5, (byteidx(text, char_idx) + 1), 1])
+				endfor
+			endfor
+			if !empty(pos_group)
+				call matchaddpos('NXMatch', pos_group)
+			endif
+		else
+			for v in split(a:cond, "|")
+				call matchadd('NXMatch', (v =~# '[A-Z]' ? '' : '\c') . v, 10, -1, {'window': winid})
+			endfor
+		endif
 	endif
 endfunction
 

@@ -30,6 +30,13 @@ function! nexus#utils#win_to_unix(path) abort
 endfunction
 
 "---------------------------------------------------------------
+" nexus#utils#get_sep
+"---------------------------------------------------------------
+function! nexus#utils#get_sep() abort
+	return  has('win32') || has('win64') ? '\' : '/'
+endfunction
+
+"---------------------------------------------------------------
 " メッセージ出力
 "---------------------------------------------------------------
 function! nexus#utils#msg(hl, msg) abort
